@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMP フランチャイズ事業計画シミュレーター Ver.3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!--
+    Chosen Palette: Warm Neutral & Muted Teal
+    Application Structure Plan: This is a focused, single-purpose SPA: a dynamic financial simulator. The layout is a two-column dashboard. The left column contains all user-adjustable parameters, grouped into collapsible sections (Acquisition, Royalty, Referral Fee, Costs) for clarity and to prevent information overload. The right column displays the results: key performance indicators (KPIs) at the top, followed by annual summary charts, and a detailed monthly breakdown table at the bottom. This structure allows users to instantly see the impact of their changes in the variables on the right-hand side outputs, facilitating intuitive "what-if" analysis and strategic planning.
+    Visualization & Content Choices:
+    - Report Info: Financial model and KPI definitions. -> Goal: Change, Compare, Analyze. -> Viz/Method: A comprehensive set of interactive sliders and input controls, coupled with dynamic Chart.js bar charts and detailed HTML tables. -> Interaction: Users manipulate sliders for all key business drivers (acquisition rates, project values, costs, etc.). All charts and tables update in real-time to reflect these changes. -> Justification: This highly interactive approach transforms a static business plan into a powerful, hands-on strategic tool. It empowers users to explore different scenarios, understand the sensitivity of each variable, and find the optimal path to profitability.
+    - Report Info: Royalty and Fee structures. -> Goal: Inform. -> Viz/Method: Simple, static HTML tables within the control panel. -> Interaction: None. -> Justification: Clearly and unambiguously presents the fixed business rules (like royalty percentages) that underpin the simulation, providing essential context for the user.
+    CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #FDFBF8;
+            color: #383838;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            max-height: 350px;
+        }
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #0d9488;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -8px;
+        }
+        .slider-thumb::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #0d9488;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        details > summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details summary .arrow {
+            transition: transform 0.2s;
+        }
+        details[open] summary .arrow {
+            transform: rotate(90deg);
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-screen-2xl">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-teal-800 mb-2">AMP フランチャイズ事業計画シミュレーター</h1>
+            <p class="text-lg text-gray-500">Version 3.0</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Controls -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm space-y-4 self-start">
+                <h3 class="font-bold text-xl mb-4 text-center">シミュレーション変数</h3>
+
+                <details class="space-y-1" open>
+                    <summary class="font-bold text-lg cursor-pointer py-2">
+                        <span class="arrow mr-2">▶</span>パートナー獲得／成長
+                    </summary>
+                    <div class="pl-6 pt-2 space-y-4 border-l-2 border-teal-100">
+                        <p class="text-sm text-gray-500 -mt-2 mb-4">各パートナーランクの、四半期ごとの獲得人数を設定します。</p>
+                        <div>
+                            <h4 class="font-semibold text-base text-gray-800">プロビジョナル</h4>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">オーガニック獲得</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="acq_provisional_organic" min="0" max="5" step="1" value="1" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_acq_provisional_organic" class="font-semibold text-teal-700 w-16 text-right">1 人</span></div>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">営業獲得</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="acq_provisional_sales" min="0" max="5" step="1" value="0" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_acq_provisional_sales" class="font-semibold text-teal-700 w-16 text-right">0 人</span></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-base text-gray-800">認定パートナー</h4>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">オーガニック獲得</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="acq_certified_organic" min="0" max="5" step="1" value="0" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_acq_certified_organic" class="font-semibold text-teal-700 w-16 text-right">0 人</span></div>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">営業獲得</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="acq_certified_sales" min="0" max="5" step="1" value="1" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_acq_certified_sales" class="font-semibold text-teal-700 w-16 text-right">1 人</span></div>
+                        </div>
+                         <div>
+                            <h4 class="font-semibold text-base text-gray-800">マスターパートナー</h4>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">オーガニック獲得</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="acq_master_organic" min="0" max="5" step="1" value="0" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_acq_master_organic" class="font-semibold text-teal-700 w-16 text-right">0 人</span></div>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">営業獲得</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="acq_master_sales" min="0" max="5" step="1" value="0" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_acq_master_sales" class="font-semibold text-teal-700 w-16 text-right">0 人</span></div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="space-y-1" open>
+                     <summary class="font-bold text-lg cursor-pointer py-2"><span class="arrow mr-2">▶</span>収益モデル：ロイヤリティ</summary>
+                     <div class="pl-6 pt-2 space-y-4 border-l-2 border-teal-100">
+                        <p class="text-sm text-gray-500 -mt-2 mb-4">パートナーからのロイヤリティ収入に関する変数を設定します。</p>
+                        <table class="w-full text-sm text-center">
+                            <thead class="bg-teal-50"><tr><th class="p-2 font-semibold">パートナーランク</th><th class="p-2 font-semibold">ロイヤリティ率</th></tr></thead>
+                            <tbody>
+                                <tr><td class="p-1">プロビジョナル</td><td class="p-1 font-bold">30%</td></tr>
+                                <tr><td class="p-1 bg-gray-50">認定</td><td class="p-1 font-bold bg-gray-50">20%</td></tr>
+                                <tr><td class="p-1">マスター</td><td class="p-1 font-bold">10%</td></tr>
+                            </tbody>
+                        </table>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">プロビジョナル: 標準単価</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="rev_provisional_deal" min="100000" max="500000" step="10000" value="150000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_rev_provisional_deal" class="font-semibold text-teal-700 w-24 text-right">¥150,000</span></div>
+                             <label class="block text-sm font-medium text-gray-700 mt-2">プロビジョナル: 月間案件数</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="proj_provisional" min="1" max="5" step="1" value="1" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_proj_provisional" class="font-semibold text-teal-700 w-24 text-right">1 件</span></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">認定: 標準単価</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="rev_certified_deal" min="100000" max="1000000" step="10000" value="200000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_rev_certified_deal" class="font-semibold text-teal-700 w-24 text-right">¥200,000</span></div>
+                             <label class="block text-sm font-medium text-gray-700 mt-2">認定: 月間案件数</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="proj_certified" min="1" max="10" step="1" value="5" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_proj_certified" class="font-semibold text-teal-700 w-24 text-right">5 件</span></div>
+                        </div>
+                         <div>
+                            <label class="block text-sm font-medium text-gray-700">マスター: 標準単価</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="rev_master_deal" min="200000" max="2000000" step="50000" value="300000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_rev_master_deal" class="font-semibold text-teal-700 w-24 text-right">¥300,000</span></div>
+                             <label class="block text-sm font-medium text-gray-700 mt-2">マスター: 月間案件数</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="proj_master" min="1" max="20" step="1" value="10" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_proj_master" class="font-semibold text-teal-700 w-24 text-right">10 件</span></div>
+                        </div>
+                     </div>
+                </details>
+
+                <details class="space-y-1">
+                     <summary class="font-bold text-lg cursor-pointer py-2"><span class="arrow mr-2">▶</span>収益モデル：紹介Fee</summary>
+                     <div class="pl-6 pt-2 space-y-4 border-l-2 border-teal-100">
+                        <p class="text-sm text-gray-500 -mt-2 mb-4">FCパートナーから紹介を受けHQ案件化された収入に関する変数を設定します。</p>
+                        <table class="w-full text-sm text-center">
+                            <thead class="bg-teal-50"><tr><th class="p-2 font-semibold">パートナーランク</th><th class="p-2 font-semibold">紹介Fee率</th></tr></thead>
+                            <tbody>
+                                <tr><td class="p-1">プロビジョナル</td><td class="p-1 font-bold">10%</td></tr>
+                                <tr><td class="p-1 bg-gray-50">認定</td><td class="p-1 font-bold bg-gray-50">20%</td></tr>
+                                <tr><td class="p-1">マスター</td><td class="p-1 font-bold">30%</td></tr>
+                            </tbody>
+                        </table>
+                         <div>
+                            <h4 class="font-semibold text-base text-gray-800">プロビジョナル</h4>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">年間紹介案件数</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="ref_provisional_deals" min="0" max="5" step="1" value="0" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_ref_provisional_deals" class="font-semibold text-teal-700 w-24 text-right">0 件</span></div>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">紹介案件の平均単価</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="ref_provisional_size" min="500000" max="5000000" step="100000" value="1000000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_ref_provisional_size" class="font-semibold text-teal-700 w-24 text-right">¥1,000,000</span></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-base text-gray-800">認定パートナー</h4>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">年間紹介案件数</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="ref_certified_deals" min="0" max="5" step="1" value="1" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_ref_certified_deals" class="font-semibold text-teal-700 w-24 text-right">1 件</span></div>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">紹介案件の平均単価</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="ref_certified_size" min="500000" max="5000000" step="100000" value="1500000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_ref_certified_size" class="font-semibold text-teal-700 w-24 text-right">¥1,500,000</span></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-base text-gray-800">マスターパートナー</h4>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">年間紹介案件数</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="ref_master_deals" min="0" max="10" step="1" value="2" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_ref_master_deals" class="font-semibold text-teal-700 w-24 text-right">2 件</span></div>
+                            <label class="block text-xs font-medium text-gray-600 mt-2">紹介案件の平均単価</label>
+                            <div class="flex items-center space-x-2"><input type="range" id="ref_master_size" min="500000" max="10000000" step="250000" value="2000000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb"><span id="val_ref_master_size" class="font-semibold text-teal-700 w-24 text-right">¥2,000,000</span></div>
+                        </div>
+                     </div>
+                </details>
+
+                 <details class="space-y-1">
+                     <summary class="font-bold text-lg cursor-pointer py-2"><span class="arrow mr-2">▶</span>費用</summary>
+                     <div class="pl-6 pt-2 space-y-4 border-l-2 border-teal-100">
+                        <div>
+                            <label for="sgaCost" class="block text-sm font-medium text-gray-700">販管費 (本社人件費等/月)</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="range" id="sgaCost" min="0" max="2000000" step="100000" value="500000" class="w-full h-2 bg-gray-200 rounded-lg slider-thumb">
+                                <span id="sgaCostValue" class="font-semibold text-teal-700 w-24 text-right">¥500,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <!-- Charts & KPIs -->
+            <div class="lg:col-span-2 space-y-8">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <h4 class="text-sm text-gray-500">単月営業黒字化</h4>
+                        <p id="breakevenMonth" class="text-2xl font-bold text-teal-700">-</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <h4 class="text-sm text-gray-500">3年後年間総売上</h4>
+                        <p id="revenue3yr" class="text-2xl font-bold text-teal-700">-</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <h4 class="text-sm text-gray-500">3年後年間粗利</h4>
+                        <p id="profit3yr" class="text-2xl font-bold text-teal-700">-</p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <h3 class="font-bold text-lg mb-4">年間収益予測（内訳）</h3>
+                     <div class="chart-container">
+                        <canvas id="annualRevenueChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <h3 class="font-bold text-lg mb-4">パートナー数推移</h3>
+                     <div class="chart-container">
+                        <canvas id="partnerGrowthChart"></canvas>
+                    </div>
+                </div>
+                 <div class="bg-white p-6 rounded-2xl shadow-sm">
+                    <h3 class="font-bold text-lg mb-4">月別財務サマリー</h3>
+                    <div class="table-container w-full overflow-x-auto">
+                        <table id="monthlySummaryTable" class="w-full text-sm text-left whitespace-nowrap">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="p-2 font-semibold">年月</th>
+                                    <th class="p-2 font-semibold text-right">総売上</th>
+                                    <th class="p-2 font-semibold text-right">粗利</th>
+                                    <th class="p-2 font-semibold text-right">営業利益</th>
+                                    <th class="p-2 font-semibold text-right">総パートナー数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const controls = {
+                acq: {
+                    provisional: { organic: document.getElementById('acq_provisional_organic'), sales: document.getElementById('acq_provisional_sales') },
+                    certified: { organic: document.getElementById('acq_certified_organic'), sales: document.getElementById('acq_certified_sales') },
+                    master: { organic: document.getElementById('acq_master_organic'), sales: document.getElementById('acq_master_sales') },
+                },
+                rev: {
+                    provisional: { deal: document.getElementById('rev_provisional_deal'), projects: document.getElementById('proj_provisional') },
+                    certified: { deal: document.getElementById('rev_certified_deal'), projects: document.getElementById('proj_certified') },
+                    master: { deal: document.getElementById('rev_master_deal'), projects: document.getElementById('proj_master') },
+                },
+                ref: {
+                    provisional: { deals: document.getElementById('ref_provisional_deals'), size: document.getElementById('ref_provisional_size') },
+                    certified: { deals: document.getElementById('ref_certified_deals'), size: document.getElementById('ref_certified_size') },
+                    master: { deals: document.getElementById('ref_master_deals'), size: document.getElementById('ref_master_size') },
+                },
+                sgaCost: document.getElementById('sgaCost'),
+            };
+
+            const values = {
+                acq: {
+                    provisional: { organic: document.getElementById('val_acq_provisional_organic'), sales: document.getElementById('val_acq_provisional_sales') },
+                    certified: { organic: document.getElementById('val_acq_certified_organic'), sales: document.getElementById('val_acq_certified_sales') },
+                    master: { organic: document.getElementById('val_acq_master_organic'), sales: document.getElementById('val_acq_master_sales') },
+                },
+                rev: {
+                    provisional: { deal: document.getElementById('val_rev_provisional_deal'), projects: document.getElementById('val_proj_provisional') },
+                    certified: { deal: document.getElementById('val_rev_certified_deal'), projects: document.getElementById('val_proj_certified') },
+                    master: { deal: document.getElementById('val_rev_master_deal'), projects: document.getElementById('val_proj_master') },
+                },
+                ref: {
+                    provisional: { deals: document.getElementById('val_ref_provisional_deals'), size: document.getElementById('val_ref_provisional_size') },
+                    certified: { deals: document.getElementById('val_ref_certified_deals'), size: document.getElementById('val_ref_certified_size') },
+                    master: { deals: document.getElementById('val_ref_master_deals'), size: document.getElementById('val_ref_master_size') },
+                },
+                sgaCostValue: document.getElementById('sgaCostValue'),
+            };
+
+            const outputs = {
+                breakevenMonth: document.getElementById('breakevenMonth'),
+                revenue3yr: document.getElementById('revenue3yr'),
+                profit3yr: document.getElementById('profit3yr'),
+                monthlyTableBody: document.querySelector('#monthlySummaryTable tbody'),
+            };
+
+            let annualRevenueChart, partnerGrowthChart;
+
+            const formatCurrency = (value) => new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value);
+            const formatNumber = (value, unit = '') => `${new Intl.NumberFormat('ja-JP').format(value)}${unit}`;
+
+            function runSimulation() {
+                const kpi = {
+                    acquisition: {
+                        provisional: { organic: +controls.acq.provisional.organic.value, sales: +controls.acq.provisional.sales.value },
+                        certified: { organic: +controls.acq.certified.organic.value, sales: +controls.acq.certified.sales.value },
+                        master: { organic: +controls.acq.master.organic.value, sales: +controls.acq.master.sales.value },
+                    },
+                    revenue: {
+                        provisional: { deal: +controls.rev.provisional.deal.value, projects: +controls.rev.provisional.projects.value },
+                        certified: { deal: +controls.rev.certified.deal.value, projects: +controls.rev.certified.projects.value },
+                        master: { deal: +controls.rev.master.deal.value, projects: +controls.rev.master.projects.value },
+                    },
+                    referral: {
+                        provisional: { dealsPerYear: +controls.ref.provisional.deals.value, dealSize: +controls.ref.provisional.size.value },
+                        certified: { dealsPerYear: +controls.ref.certified.deals.value, dealSize: +controls.ref.certified.size.value },
+                        master: { dealsPerYear: +controls.ref.master.deals.value, dealSize: +controls.ref.master.size.value },
+                    },
+                    royaltyRates: { Provisional: 0.30, Certified: 0.20, Master: 0.10 },
+                    referralFeeRates: { Provisional: 0.10, Certified: 0.20, Master: 0.30 },
+                    cogsFixed: 30000, cogsVariableRate: 0.10, sgaFixed: +controls.sgaCost.value,
+                };
+
+                values.acq.provisional.organic.textContent = formatNumber(kpi.acquisition.provisional.organic, ' 人');
+                values.acq.provisional.sales.textContent = formatNumber(kpi.acquisition.provisional.sales, ' 人');
+                values.acq.certified.organic.textContent = formatNumber(kpi.acquisition.certified.organic, ' 人');
+                values.acq.certified.sales.textContent = formatNumber(kpi.acquisition.certified.sales, ' 人');
+                values.acq.master.organic.textContent = formatNumber(kpi.acquisition.master.organic, ' 人');
+                values.acq.master.sales.textContent = formatNumber(kpi.acquisition.master.sales, ' 人');
+                values.rev.provisional.deal.textContent = formatCurrency(kpi.revenue.provisional.deal);
+                values.rev.provisional.projects.textContent = formatNumber(kpi.revenue.provisional.projects, ' 件');
+                values.rev.certified.deal.textContent = formatCurrency(kpi.revenue.certified.deal);
+                values.rev.certified.projects.textContent = formatNumber(kpi.revenue.certified.projects, ' 件');
+                values.rev.master.deal.textContent = formatCurrency(kpi.revenue.master.deal);
+                values.rev.master.projects.textContent = formatNumber(kpi.revenue.master.projects, ' 件');
+                values.ref.provisional.deals.textContent = formatNumber(kpi.referral.provisional.dealsPerYear, ' 件');
+                values.ref.provisional.size.textContent = formatCurrency(kpi.referral.provisional.dealSize);
+                values.ref.certified.deals.textContent = formatNumber(kpi.referral.certified.dealsPerYear, ' 件');
+                values.ref.certified.size.textContent = formatCurrency(kpi.referral.certified.dealSize);
+                values.ref.master.deals.textContent = formatNumber(kpi.referral.master.dealsPerYear, ' 件');
+                values.ref.master.size.textContent = formatCurrency(kpi.referral.master.dealSize);
+                values.sgaCostValue.textContent = formatCurrency(kpi.sgaFixed);
+
+                let partners = [];
+                let nextPartnerId = 1;
+                let masterPromotedInFY = {};
+                const monthlyResults = [];
+                const startDate = new Date('2025-10-01');
+                const endDate = new Date('2029-03-31');
+
+                for (let d = new Date(startDate); d <= endDate; d.setMonth(d.getMonth() + 1)) {
+                    const currentMonth = new Date(d);
+                    const fiscalYear = currentMonth.getMonth() >= 3 ? currentMonth.getFullYear() : currentMonth.getFullYear() - 1;
+
+                    if (currentMonth.getTime() === startDate.getTime()) {
+                         partners.push({ id: nextPartnerId++, startDate: currentMonth, level: 'Provisional', promotionDate: null });
+                    }
+                    if (currentMonth >= new Date('2026-01-01') && [0, 3, 6, 9].includes(currentMonth.getMonth())) {
+                        Object.entries(kpi.acquisition).forEach(([level, acqTypes]) => {
+                            const levelCapitalized = level.charAt(0).toUpperCase() + level.slice(1);
+                            for(let i=0; i < acqTypes.organic; i++) partners.push({ id: nextPartnerId++, startDate: currentMonth, level: levelCapitalized, promotionDate: levelCapitalized !== 'Provisional' ? currentMonth : null });
+                            for(let i=0; i < acqTypes.sales; i++) partners.push({ id: nextPartnerId++, startDate: currentMonth, level: levelCapitalized, promotionDate: levelCapitalized !== 'Provisional' ? currentMonth : null });
+                        });
+                    }
+
+                    if (currentMonth.getMonth() === 2 && !masterPromotedInFY[fiscalYear]) {
+                        const eligible = partners.filter(p => p.level === 'Certified' && p.promotionDate);
+                        if (eligible.length > 0) {
+                            eligible.sort((a, b) => a.promotionDate - b.promotionDate);
+                            eligible[0].level = 'Master';
+                            masterPromotedInFY[fiscalYear] = true;
+                        }
+                    }
+                    partners.forEach(p => {
+                        if (p.level === 'Provisional') {
+                            const monthsSinceStart = (currentMonth.getFullYear() - p.startDate.getFullYear()) * 12 + (currentMonth.getMonth() - p.startDate.getMonth());
+                            if (monthsSinceStart >= 6) {
+                                p.level = 'Certified';
+                                p.promotionDate = currentMonth;
+                            }
+                        }
+                    });
+
+                    let totalRoyalty = 0;
+                    let totalReferralFee = 0;
+                    const partnerCounts = { Provisional: 0, Certified: 0, Master: 0 };
+
+                    partners.forEach(p => {
+                        partnerCounts[p.level]++;
+                        const levelLower = p.level.toLowerCase();
+                        totalRoyalty += kpi.revenue[levelLower].projects * kpi.revenue[levelLower].deal * kpi.royaltyRates[p.level];
+                        totalReferralFee += (kpi.referral[levelLower].dealsPerYear / 12) * kpi.referral[levelLower].dealSize * kpi.referralFeeRates[p.level];
+                    });
+
+                    const totalRevenue = totalRoyalty + totalReferralFee;
+                    const cogs = kpi.cogsFixed + (totalRevenue * kpi.cogsVariableRate);
+                    const grossProfit = totalRevenue - cogs;
+                    const operatingProfit = grossProfit - kpi.sgaFixed;
+
+                    monthlyResults.push({
+                        month: currentMonth, fiscalYear,
+                        royalty: totalRoyalty, referralFee: totalReferralFee, totalRevenue,
+                        grossProfit, operatingProfit, partnerCounts,
+                    });
+                }
+
+                const annualData = {};
+                monthlyResults.forEach(res => {
+                    if (!annualData[res.fiscalYear]) {
+                        annualData[res.fiscalYear] = {
+                            royalty: 0, referralFee: 0, revenue: 0, grossProfit: 0, partners: 0,
+                            provisionalCount: 0, certifiedCount: 0, masterCount: 0
+                        };
+                    }
+                    annualData[res.fiscalYear].royalty += res.royalty;
+                    annualData[res.fiscalYear].referralFee += res.referralFee;
+                    annualData[res.fiscalYear].revenue += res.totalRevenue;
+                    annualData[res.fiscalYear].grossProfit += res.grossProfit;
+                    annualData[res.fiscalYear].partners = Object.values(res.partnerCounts).reduce((a,b)=>a+b,0);
+                    annualData[res.fiscalYear].provisionalCount = res.partnerCounts.Provisional;
+                    annualData[res.fiscalYear].certifiedCount = res.partnerCounts.Certified;
+                    annualData[res.fiscalYear].masterCount = res.partnerCounts.Master;
+                });
+
+                updateCharts(annualData);
+                updateMonthlyTable(monthlyResults);
+
+                const breakeven = monthlyResults.find(r => r.operatingProfit > 0);
+                outputs.breakevenMonth.textContent = breakeven ? `${breakeven.month.getFullYear()}年${breakeven.month.getMonth()+1}月` : '3年以上';
+
+                const lastYearKey = Object.keys(annualData).pop();
+                if(lastYearKey) {
+                    const lastYearData = annualData[lastYearKey];
+                    outputs.revenue3yr.textContent = formatCurrency(lastYearData.revenue);
+                    outputs.profit3yr.textContent = formatCurrency(lastYearData.grossProfit);
+                }
+            }
+
+            function createCharts() {
+                const chartOptions = (isStacked = false, hasTooltip = true) => ({
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { stacked: isStacked }, y: { stacked: isStacked, beginAtZero: true, ticks: { callback: value => formatCurrency(value) } } },
+                    plugins: { tooltip: { enabled: hasTooltip, callbacks: { label: c => `${c.dataset.label}: ${formatCurrency(c.raw)}` } } }
+                });
+                annualRevenueChart = new Chart('annualRevenueChart', { type: 'bar', data: { labels: [], datasets: [] }, options: chartOptions(true, true) });
+                partnerGrowthChart = new Chart('partnerGrowthChart', { type: 'bar', data: { labels: [], datasets: [] }, options: chartOptions(true, false, { scales: { y: { ticks: { stepSize: 1 } } } }) });
+            }
+
+            function updateCharts(annualData) {
+                const yearKeys = Object.keys(annualData);
+                const chartLabels = yearKeys.map(l => `${l}年度`);
+
+                annualRevenueChart.data.labels = chartLabels;
+                annualRevenueChart.data.datasets = [
+                    { label: 'ロイヤリティ売上', data: yearKeys.map(yr => annualData[yr].royalty), backgroundColor: '#0d9488' },
+                    { label: '紹介Fee売上', data: yearKeys.map(yr => annualData[yr].referralFee), backgroundColor: '#5eead4' }
+                ];
+                annualRevenueChart.update();
+
+                partnerGrowthChart.data.labels = chartLabels;
+                partnerGrowthChart.data.datasets = [
+                    { label: 'Provisional', data: yearKeys.map(yr => annualData[yr].provisionalCount), backgroundColor: '#99f6e4' },
+                    { label: 'Certified', data: yearKeys.map(yr => annualData[yr].certifiedCount), backgroundColor: '#2dd4bf' },
+                    { label: 'Master', data: yearKeys.map(yr => annualData[yr].masterCount), backgroundColor: '#0d9488' }
+                ];
+                partnerGrowthChart.update();
+            }
+
+            function updateMonthlyTable(monthlyResults) {
+                let tableHtml = '';
+                monthlyResults.forEach(res => {
+                    tableHtml += `
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="p-2">${res.month.getFullYear()}/${String(res.month.getMonth() + 1).padStart(2, '0')}</td>
+                            <td class="p-2 text-right">${formatCurrency(res.totalRevenue)}</td>
+                            <td class="p-2 text-right">${formatCurrency(res.grossProfit)}</td>
+                            <td class="p-2 text-right ${res.operatingProfit < 0 ? 'text-red-500' : 'text-green-600'}">${formatCurrency(res.operatingProfit)}</td>
+                            <td class="p-2 text-right">${Object.values(res.partnerCounts).reduce((a,b)=>a+b,0)}</td>
+                        </tr>
+                    `;
+                });
+                outputs.monthlyTableBody.innerHTML = tableHtml;
+            }
+
+            createCharts();
+            runSimulation();
+
+            const recursiveEventListener = (obj) => {
+                 Object.values(obj).forEach(val => {
+                     if (val.tagName === 'INPUT') {
+                         val.addEventListener('input', runSimulation);
+                     } else if (typeof val === 'object' && val !== null) {
+                         recursiveEventListener(val);
+                     }
+                 });
+            };
+            recursiveEventListener(controls);
+        });
+    </script>
+</body>
+</html>
