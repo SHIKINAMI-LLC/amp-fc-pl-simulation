@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMP フランチャイズ事業計画シミュレーター Ver.3</title>
+    <title>AMP フランチャイズ事業計画シミュレーター Ver.3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <!--
-    Chosen Palette: Warm Neutral & Muted Teal
+    <!-- 
+    Chosen Palette: Warm Neutral & Muted Teal 
     Application Structure Plan: This is a focused, single-purpose SPA: a dynamic financial simulator. The layout is a two-column dashboard. The left column contains all user-adjustable parameters, grouped into collapsible sections (Acquisition, Royalty, Referral Fee, Costs) for clarity and to prevent information overload. The right column displays the results: key performance indicators (KPIs) at the top, followed by annual summary charts, and a detailed monthly breakdown table at the bottom. This structure allows users to instantly see the impact of their changes in the variables on the right-hand side outputs, facilitating intuitive "what-if" analysis and strategic planning.
-    Visualization & Content Choices:
+    Visualization & Content Choices: 
     - Report Info: Financial model and KPI definitions. -> Goal: Change, Compare, Analyze. -> Viz/Method: A comprehensive set of interactive sliders and input controls, coupled with dynamic Chart.js bar charts and detailed HTML tables. -> Interaction: Users manipulate sliders for all key business drivers (acquisition rates, project values, costs, etc.). All charts and tables update in real-time to reflect these changes. -> Justification: This highly interactive approach transforms a static business plan into a powerful, hands-on strategic tool. It empowers users to explore different scenarios, understand the sensitivity of each variable, and find the optimal path to profitability.
     - Report Info: Royalty and Fee structures. -> Goal: Inform. -> Viz/Method: Simple, static HTML tables within the control panel. -> Interaction: None. -> Justification: Clearly and unambiguously presents the fixed business rules (like royalty percentages) that underpin the simulation, providing essential context for the user.
-    CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. 
     -->
     <style>
         body {
@@ -66,17 +66,17 @@
 </head>
 <body class="antialiased">
     <div id="app" class="container mx-auto p-4 md:p-8 max-w-screen-2xl">
-
+        
         <header class="text-center mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-teal-800 mb-2">AMP フランチャイズ事業計画シミュレーター</h1>
-            <p class="text-lg text-gray-500">Version 3.0</p>
+            <p class="text-lg text-gray-500">Version 3.1</p>
         </header>
 
         <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Controls -->
             <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm space-y-4 self-start">
                 <h3 class="font-bold text-xl mb-4 text-center">シミュレーション変数</h3>
-
+                
                 <details class="space-y-1" open>
                     <summary class="font-bold text-lg cursor-pointer py-2">
                         <span class="arrow mr-2">▶</span>パートナー獲得／成長
@@ -141,9 +141,9 @@
                 </details>
 
                 <details class="space-y-1">
-                     <summary class="font-bold text-lg cursor-pointer py-2"><span class="arrow mr-2">▶</span>収益モデル：紹介Fee</summary>
+                     <summary class="font-bold text-lg cursor-pointer py-2"><span class="arrow mr-2">▶</span>収益モデル：紹介案件</summary>
                      <div class="pl-6 pt-2 space-y-4 border-l-2 border-teal-100">
-                        <p class="text-sm text-gray-500 -mt-2 mb-4">FCパートナーから紹介を受けHQ案件化された収入に関する変数を設定します。</p>
+                        <p class="text-sm text-gray-500 -mt-2 mb-4">FCパートナーから紹介を受けHQ案件化された収入と費用（Fee）に関する変数を設定します。</p>
                         <table class="w-full text-sm text-center">
                             <thead class="bg-teal-50"><tr><th class="p-2 font-semibold">パートナーランク</th><th class="p-2 font-semibold">紹介Fee率</th></tr></thead>
                             <tbody>
@@ -280,7 +280,7 @@
                 },
                 sgaCostValue: document.getElementById('sgaCostValue'),
             };
-
+            
             const outputs = {
                 breakevenMonth: document.getElementById('breakevenMonth'),
                 revenue3yr: document.getElementById('revenue3yr'),
@@ -374,26 +374,30 @@
                             }
                         }
                     });
-
+                    
                     let totalRoyalty = 0;
-                    let totalReferralFee = 0;
+                    let hqDirectRevenue = 0;
+                    let totalReferralFeeCost = 0;
                     const partnerCounts = { Provisional: 0, Certified: 0, Master: 0 };
-
+                    
                     partners.forEach(p => {
                         partnerCounts[p.level]++;
                         const levelLower = p.level.toLowerCase();
                         totalRoyalty += kpi.revenue[levelLower].projects * kpi.revenue[levelLower].deal * kpi.royaltyRates[p.level];
-                        totalReferralFee += (kpi.referral[levelLower].dealsPerYear / 12) * kpi.referral[levelLower].dealSize * kpi.referralFeeRates[p.level];
+                        
+                        const referredRevenuePerPartner = (kpi.referral[levelLower].dealsPerYear / 12) * kpi.referral[levelLower].dealSize;
+                        hqDirectRevenue += referredRevenuePerPartner;
+                        totalReferralFeeCost += referredRevenuePerPartner * kpi.referralFeeRates[p.level];
                     });
-
-                    const totalRevenue = totalRoyalty + totalReferralFee;
-                    const cogs = kpi.cogsFixed + (totalRevenue * kpi.cogsVariableRate);
+                    
+                    const totalRevenue = totalRoyalty + hqDirectRevenue;
+                    const cogs = kpi.cogsFixed + (totalRevenue * kpi.cogsVariableRate) + totalReferralFeeCost;
                     const grossProfit = totalRevenue - cogs;
                     const operatingProfit = grossProfit - kpi.sgaFixed;
 
                     monthlyResults.push({
                         month: currentMonth, fiscalYear,
-                        royalty: totalRoyalty, referralFee: totalReferralFee, totalRevenue,
+                        royalty: totalRoyalty, hqDirectRevenue: hqDirectRevenue, totalRevenue,
                         grossProfit, operatingProfit, partnerCounts,
                     });
                 }
@@ -401,27 +405,26 @@
                 const annualData = {};
                 monthlyResults.forEach(res => {
                     if (!annualData[res.fiscalYear]) {
-                        annualData[res.fiscalYear] = {
-                            royalty: 0, referralFee: 0, revenue: 0, grossProfit: 0, partners: 0,
+                        annualData[res.fiscalYear] = { 
+                            royalty: 0, hqDirectRevenue: 0, revenue: 0, grossProfit: 0,
                             provisionalCount: 0, certifiedCount: 0, masterCount: 0
                         };
                     }
                     annualData[res.fiscalYear].royalty += res.royalty;
-                    annualData[res.fiscalYear].referralFee += res.referralFee;
+                    annualData[res.fiscalYear].hqDirectRevenue += res.hqDirectRevenue;
                     annualData[res.fiscalYear].revenue += res.totalRevenue;
                     annualData[res.fiscalYear].grossProfit += res.grossProfit;
-                    annualData[res.fiscalYear].partners = Object.values(res.partnerCounts).reduce((a,b)=>a+b,0);
                     annualData[res.fiscalYear].provisionalCount = res.partnerCounts.Provisional;
                     annualData[res.fiscalYear].certifiedCount = res.partnerCounts.Certified;
                     annualData[res.fiscalYear].masterCount = res.partnerCounts.Master;
                 });
-
+                
                 updateCharts(annualData);
                 updateMonthlyTable(monthlyResults);
-
+                
                 const breakeven = monthlyResults.find(r => r.operatingProfit > 0);
                 outputs.breakevenMonth.textContent = breakeven ? `${breakeven.month.getFullYear()}年${breakeven.month.getMonth()+1}月` : '3年以上';
-
+                
                 const lastYearKey = Object.keys(annualData).pop();
                 if(lastYearKey) {
                     const lastYearData = annualData[lastYearKey];
@@ -433,11 +436,40 @@
             function createCharts() {
                 const chartOptions = (isStacked = false, hasTooltip = true) => ({
                     responsive: true, maintainAspectRatio: false,
-                    scales: { x: { stacked: isStacked }, y: { stacked: isStacked, beginAtZero: true, ticks: { callback: value => formatCurrency(value) } } },
-                    plugins: { tooltip: { enabled: hasTooltip, callbacks: { label: c => `${c.dataset.label}: ${formatCurrency(c.raw)}` } } }
+                    scales: { 
+                        x: { stacked: isStacked }, 
+                        y: { 
+                            stacked: isStacked, 
+                            beginAtZero: true, 
+                            ticks: { 
+                                callback: value => {
+                                    if (value >= 1e8) return `${value / 1e8}億円`;
+                                    if (value >= 1e4) return `${value / 1e4}万円`;
+                                    return value;
+                                }
+                            } 
+                        } 
+                    },
+                    plugins: { 
+                        tooltip: { 
+                            enabled: hasTooltip, 
+                            callbacks: { 
+                                label: c => `${c.dataset.label}: ${formatCurrency(c.raw)}` 
+                            } 
+                        } 
+                    }
                 });
+                const partnerChartOptions = {
+                     responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: { tooltip: { enabled: true } }
+                }
+
                 annualRevenueChart = new Chart('annualRevenueChart', { type: 'bar', data: { labels: [], datasets: [] }, options: chartOptions(true, true) });
-                partnerGrowthChart = new Chart('partnerGrowthChart', { type: 'bar', data: { labels: [], datasets: [] }, options: chartOptions(true, false, { scales: { y: { ticks: { stepSize: 1 } } } }) });
+                partnerGrowthChart = new Chart('partnerGrowthChart', { type: 'bar', data: { labels: [], datasets: [] }, options: partnerChartOptions });
             }
 
             function updateCharts(annualData) {
@@ -447,7 +479,7 @@
                 annualRevenueChart.data.labels = chartLabels;
                 annualRevenueChart.data.datasets = [
                     { label: 'ロイヤリティ売上', data: yearKeys.map(yr => annualData[yr].royalty), backgroundColor: '#0d9488' },
-                    { label: '紹介Fee売上', data: yearKeys.map(yr => annualData[yr].referralFee), backgroundColor: '#5eead4' }
+                    { label: '本社直接売上(紹介)', data: yearKeys.map(yr => annualData[yr].hqDirectRevenue), backgroundColor: '#5eead4' }
                 ];
                 annualRevenueChart.update();
 
@@ -478,7 +510,7 @@
 
             createCharts();
             runSimulation();
-
+            
             const recursiveEventListener = (obj) => {
                  Object.values(obj).forEach(val => {
                      if (val.tagName === 'INPUT') {
